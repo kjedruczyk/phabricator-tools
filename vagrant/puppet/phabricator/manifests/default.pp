@@ -1,7 +1,5 @@
 # Basic Puppet Apache manifest
 
-$apache2_sites = "/etc/apache2/sites"
-$apache2_mods  = "/etc/apache2/mods"
 $phab_dir      = "/phabricator"
 $dev_dir       = "${phab_dir}/instances/dev"
 $document_root = "${dev_dir}/phabricator/webroot"
@@ -22,34 +20,27 @@ exec { 'apt-update':
     path        => $std_path,
 }
 
-class apache2 {
-
-  package { "apache2":
-    ensure => present,
-  }
-
-   service { "apache2":
-      ensure     => running,
-      hasstatus  => true,
-      hasrestart => true,
-      require    => Package["apache2"],
-   }
-
-  file { 'vhost':
-    path    => '/etc/apache2/conf.d/95-phab.conf',
-    ensure  => present,
-    content => template("phabricator/vhost.erb"),
-    notify  => Service['apache2'],
-  }
-
-   define module ( $requires = 'apache2' ) {
-        exec { "/usr/sbin/a2enmod ${name}":
-           unless  => "/bin/readlink -e ${apache2_mods}-enabled/${name}.load",
-           notify  => Service['apache2'],
-           require => Package[$requires],
-        }
-   }
+class { 'apache':
+      default_mods        => false,
+      default_confd_files => false,
+      mpm_module => 'prefork',
 }
+
+class { '::apache::mod::php': }
+
+apache::mod { 'env': }
+
+  apache::vhost { 'localhost':
+    priority => 10,
+    port => '80',
+    docroot => "${document_root}",
+    setenv => [ 'PHABRICATOR_ENV production' ],
+    rewrites => [
+                 { rewrite_rule => ['^/rsrc/(.*) - [L,QSA]'], },
+                 { rewrite_rule => ['^/favicon.ico - [L,QSA]'], },
+                 { rewrite_rule => ['^(.*)$ /index.php?__path__=$1 [B,L,QSA]'],},
+                ],
+  }
 
 class otherpackages {
     $packages = ["git-core", "mysql-server", "php5", "dpkg-dev", "unzip"]
@@ -107,17 +98,14 @@ class phabricatordb {
 }
 
 # declare our entities
-class {'apache2':}
 class {'otherpackages':}
-apache2::module { "rewrite": }
 class {'phabricatordirs':}
 class {'phabricator':}
 class {'phabricatordb':}
 
 # declare our dependencies
-Class['apache2']       <- File['apt-proxyconfig']
+Class['apache'] <- Class['phabricator']
 Class['otherpackages'] <- File['apt-proxyconfig']
-Class['phabricator']   <- Class['apache2']
 Class['phabricator']   <- Class['otherpackages']
 Class['phabricator']   <- Class['phabricatordirs']
 Class['phabricatordb'] <- Class['phabricator']
