@@ -115,6 +115,17 @@ class phabricatordb {
     }
 }
 
+class phabricatordaemons {
+    service { 'phabricatordaemons':
+        provider => base,
+        ensure   => 'running',
+        start    => "${dev_dir}/phabricator/bin/phd start",
+        restart  => "${dev_dir}/phabricator/bin/phd restart",
+        stop     => "${dev_dir}/phabricator/bin/phd stop",
+        status   => "${dev_dir}/phabricator/bin/phd status",
+    }
+}
+
 # declare our entities
 class {'apache2':}
 class {'otherpackages':}
@@ -122,6 +133,7 @@ apache2::module { "rewrite": }
 class {'phabricatordirs':}
 class {'phabricator':}
 class {'phabricatordb':}
+class {'phabricatordaemons':}
 
 # declare our dependencies
 Class['apache2']       <- File['apt-proxyconfig']
@@ -130,3 +142,4 @@ Class['phabricator']   <- Class['apache2']
 Class['phabricator']   <- Class['otherpackages']
 Class['phabricator']   <- Class['phabricatordirs']
 Class['phabricatordb'] <- Class['phabricator']
+Class['phabricatordaemons'] <- Class['phabricatordb']
