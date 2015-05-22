@@ -72,6 +72,9 @@ class phabricatordirs {
     # puppet won't create parent directories and will fail if we don't
     # manually specify each of them as separate dependencies
     # it does automatically create them in the correct order though
+    file { "/phabricator/instances/dev/repositories":
+        ensure => directory,
+    }
     file { "/phabricator/instances/dev":
         ensure => directory,
     }
@@ -115,6 +118,12 @@ class phabricatordb {
     }
 }
 
+class phabricatorcfg {
+    exec { "${dev_dir}/phabricator/bin/config set repository.default-local-path ${dev_dir}/repositories/":
+        path  => $std_path
+    }
+}
+
 class phabricatordaemons {
     service { 'phabricatordaemons':
         provider => base,
@@ -133,6 +142,7 @@ apache2::module { "rewrite": }
 class {'phabricatordirs':}
 class {'phabricator':}
 class {'phabricatordb':}
+class {'phabricatorcfg':}
 class {'phabricatordaemons':}
 
 # declare our dependencies
@@ -142,4 +152,6 @@ Class['phabricator']   <- Class['apache2']
 Class['phabricator']   <- Class['otherpackages']
 Class['phabricator']   <- Class['phabricatordirs']
 Class['phabricatordb'] <- Class['phabricator']
+Class['phabricatorcfg'] <- Class['phabricator']
 Class['phabricatordaemons'] <- Class['phabricatordb']
+Class['phabricatordaemons'] <- Class['phabricatorcfg']
