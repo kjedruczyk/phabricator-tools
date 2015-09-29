@@ -148,6 +148,7 @@ class Layout(object):
     urlwatcher_cache_path = '.arcyd.urlwatcher.cache'
     lockfile = 'var/lockfile'
     killfile = 'var/command/killfile'
+    reloadfile = 'var/command/reload'
 
     dir_run = 'var/run'
 

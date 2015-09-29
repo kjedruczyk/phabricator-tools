@@ -46,6 +46,7 @@ import abdt_logging
 import abdt_rbranchnaming
 import abdt_tryloop
 
+import abdi_processexitcodes
 import abdi_processrepo
 import abdi_repoargs
 
@@ -94,8 +95,8 @@ def do(
 
     cycle_timer = phlsys_timer.Timer()
     cycle_timer.start()
-    finished = False
-    while not finished:
+    exit_code = None
+    while exit_code is None:
 
         # This timer needs to be separate from the cycle timer. The cycle timer
         # must be reset every time it is reported. The sleep timer makes sure
@@ -145,32 +146,32 @@ def do(
                 except phlsys_subprocess.CalledProcessError as e:
                     _LOGGER.error("CycleReportJson: {}".format(e))
 
-        # look for killfile
-        if os.path.isfile(fs_accessor.layout.killfile):
-
-            # finish any jobs that overran
-            for i, res in pool.finish_results():
-                repo = repo_list[i]
-                repo.merge_from_worker(res)
-
-            # important to do this before stopping arcyd and as soon as
-            # possible after doing fetches
-            url_watcher_wrapper.save()
-
-            os.remove(fs_accessor.layout.killfile)
-            finished = True
-            break
-
         if is_no_loop:
-            finished = True
-            break
+            exit_code = abdi_processexitcodes.ExitCodes.ec_exit
+        elif os.path.isfile(fs_accessor.layout.killfile):
+            exit_code = abdi_processexitcodes.ExitCodes.ec_exit
+            os.remove(fs_accessor.layout.killfile)
+        elif os.path.isfile(fs_accessor.layout.reloadfile):
+            exit_code = abdi_processexitcodes.ExitCodes.ec_reload
+            os.remove(fs_accessor.layout.reloadfile)
 
         # sleep to pad out the cycle
         secs_to_sleep = float(sleep_secs) - float(sleep_timer.duration)
-        if secs_to_sleep > 0:
+        if secs_to_sleep > 0 and exit_code is None:
             with abdt_logging.misc_operation_event_context(
                     'sleep', secs_to_sleep):
                 time.sleep(secs_to_sleep)
+
+    # finish any jobs that overran
+    for i, res in pool.finish_results():
+        repo = repo_list[i]
+        repo.merge_from_worker(res)
+
+    # important to do this before stopping arcyd and as soon as
+    # possible after doing fetches
+    url_watcher_wrapper.save()
+
+    return exit_code
 
 
 def determine_max_workers_default():
