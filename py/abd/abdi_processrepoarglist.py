@@ -56,7 +56,6 @@ _LOGGER = logging.getLogger(__name__)
 def do(
         repo_configs,
         sys_admin_emails,
-        kill_file,
         sleep_secs,
         is_no_loop,
         external_report_command,
@@ -147,7 +146,7 @@ def do(
                     _LOGGER.error("CycleReportJson: {}".format(e))
 
         # look for killfile
-        if os.path.isfile(kill_file):
+        if os.path.isfile(fs_accessor.layout.killfile):
 
             # finish any jobs that overran
             for i, res in pool.finish_results():
@@ -158,7 +157,7 @@ def do(
             # possible after doing fetches
             url_watcher_wrapper.save()
 
-            os.remove(kill_file)
+            os.remove(fs_accessor.layout.killfile)
             finished = True
             break
 
