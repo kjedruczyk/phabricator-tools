@@ -33,6 +33,7 @@ import phlsys_workingdircommand
 
 
 class Worker(object):
+
     """Simulate a person working with Phabricator, Git and Arcyd."""
 
     def __init__(
